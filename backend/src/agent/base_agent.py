@@ -1,5 +1,4 @@
 import os
-
 from agent.llm.llm import openaiLLM
 from dashscope import Application
 from agent.post import Post
