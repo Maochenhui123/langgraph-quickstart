@@ -1,4 +1,5 @@
 import os
+import copy
 from agent.llm.llm import openaiLLM
 from dashscope import Application
 from agent.post import Post
@@ -17,7 +18,7 @@ class Agent:
         self.step_prompt = prompt
 
     def step(self, **kwargs):
-        step_prompt = self.step_prompt.format(**kwargs)
+        step_prompt = self.prompt_format(self.step_prompt, **kwargs)
         response = ""
         for _ in range(10):
             try:
@@ -31,6 +32,14 @@ class Agent:
 
     def post_process(self, response):
         return response
+
+    def prompt_format(self, prompt, **kwargs):
+        prompt_ = copy.deepcopy(prompt)
+        for k in kwargs.keys():
+            rep = "{"+k+"}"
+            prompt_ = prompt_.replace(rep, str(kwargs[k]))
+        return prompt_
+
 
 class JsonAgent(Agent):
     def __init__(self, model_id="qwen2.5-72b-instruct", keys=None):

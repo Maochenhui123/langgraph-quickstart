@@ -1,7 +1,5 @@
 from datetime import datetime
 
-from backend.build.lib.agent.prompts import web_searcher_instructions
-
 
 # Get current date in a readable format
 def get_current_date():
@@ -34,20 +32,6 @@ Topic: What revenue grew more last year apple stock or the number of people buyi
 ```
 
 Context: {research_topic}"""
-
-
-# web_searcher_instructions = """Conduct targeted Google Searches to gather the most recent, credible information on "{research_topic}" and synthesize it into a verifiable text artifact.
-#
-# Instructions:
-# - Query should ensure that the most current information is gathered. The current date is {current_date}.
-# - Conduct multiple, diverse searches to gather comprehensive information.
-# - Consolidate key findings while meticulously tracking the source(s) for each specific piece of information.
-# - The output should be a well-written summary or report based on your search findings.
-# - Only include the information found in the search results, don't make up any information.
-#
-# Research Topic:
-# {research_topic}
-# """
 
 web_searcher_instructions = """# 角色定义
 你是一个情报整合大师，你擅长处理给到的所有情报，并将其处理成一个精简的内容，并注明当前内容的来源

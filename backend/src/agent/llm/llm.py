@@ -20,6 +20,7 @@ class openaiLLM:
                     "role": "user",
                     "content": query
                 }
-            ]
+            ],
+            extra_body={"enable_thinking": False},
         )
         return response.choices[0].message.content
