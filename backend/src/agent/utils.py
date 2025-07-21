@@ -24,8 +24,8 @@ def resolve_urls(urls_to_resolve: List[Any], id: int) -> Dict[str, str]:
     Create a map of the vertex ai search urls (very long) to a short url with a unique id for each url.
     Ensures each original URL gets a consistent shortened form while maintaining uniqueness.
     """
-    prefix = f"https://vertexaisearch.cloud.google.com/id/"
-    urls = [site.web.uri for site in urls_to_resolve]
+    prefix = f"https://search.com/id/"
+    urls = [site["url"] for site in urls_to_resolve]
 
     # Create a dictionary that maps each unique URL to its first occurrence index
     resolved_map = {}
@@ -108,7 +108,7 @@ def get_citations(response, resolved_urls_map):
     citations = []
 
     # Ensure response and necessary nested structures are present
-    if not response or not response.candidates:
+    if not response:
         return citations
 
     candidate = response.candidates[0]

@@ -1,3 +1,4 @@
+import json
 import os
 
 from agent.tools_and_schemas import SearchQueryList, Reflection
@@ -23,11 +24,9 @@ from agent.prompts import (
     reflection_instructions,
     answer_instructions,
 )
-from langchain_google_genai import ChatGoogleGenerativeAI
+from agent.post import Post
 from agent.utils import (
-    get_citations,
     get_research_topic,
-    insert_citation_markers,
     resolve_urls,
 )
 from agent.base_agent import Agent, JsonAgent, WebSearchAgent
@@ -76,7 +75,7 @@ def continue_to_web_research(state: QueryGenerationState):
     ]
 
 
-def web_research(state: WebSearchState, config: RunnableConfig) -> OverallState:
+def web_research(state: WebSearchAgent, config: RunnableConfig) -> OverallState:
     """LangGraph node that performs web research using the native Google Search API tool.
 
     Executes a web search using the native Google Search API tool in combination with Gemini 2.0 Flash.
@@ -90,29 +89,22 @@ def web_research(state: WebSearchState, config: RunnableConfig) -> OverallState:
     """
     # Configure
     configurable = Configuration.from_runnable_config(config)
-    formatted_prompt = web_searcher_instructions.format(
-        current_date=get_current_date(),
-        research_topic=state["search_query"],
-    )
-    # TODO 把这个替换成
     # Uses the google genai client as the langchain client doesn't return grounding metadata
-    response = genai_client.models.generate_content(
-        model=configurable.query_generator_model,
-        contents=formatted_prompt,
-        config={
-            "tools": [{"google_search": {}}],
-            "temperature": 0,
-        },
-    )
-    # resolve the urls to short urls for saving tokens and time
-    resolved_urls = resolve_urls(
-        response.candidates[0].grounding_metadata.grounding_chunks, state["id"]
-    )
-    # Gets the citations and adds them to the generated text
-    citations = get_citations(response, resolved_urls)
-    modified_text = insert_citation_markers(response.text, citations)
-    sources_gathered = [item for citation in citations for item in citation["segments"]]
+    web_searcher = WebSearchAgent()
 
+    # pass
+    response = web_searcher.step(prompt=state["search_query"],
+                                 count=10)
+    # 长url到短url的mapping
+    long2short_url_mappings = resolve_urls(response, state["id"])
+    sources_gathered = [{"short_url": short_url, "value": long_url} for long_url, short_url in long2short_url_mappings.items()]
+    web_search_result = [{"snippet": item["snippet"], "title": item["title"], "url": long2short_url_mappings[item["url"]]} for item in response]
+    web_search_result = json.dumps(web_search_result, ensure_ascii=False, indent=4)
+
+    agent = Agent(model_id=configurable.query_generator_model)
+    agent.set_step_prompt(web_searcher_instructions)
+    modified_text = agent.step(query=state["search_query"], current_date=get_current_date(), web_search_result=web_search_result)
+    modified_text = Post.extract_pattern(modified_text, pattern="text")
     return {
         "sources_gathered": sources_gathered,
         "search_query": [state["search_query"]],

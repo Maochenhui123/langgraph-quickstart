@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from backend.build.lib.agent.prompts import web_searcher_instructions
+
 
 # Get current date in a readable format
 def get_current_date():
@@ -34,17 +36,53 @@ Topic: What revenue grew more last year apple stock or the number of people buyi
 Context: {research_topic}"""
 
 
-web_searcher_instructions = """Conduct targeted Google Searches to gather the most recent, credible information on "{research_topic}" and synthesize it into a verifiable text artifact.
+# web_searcher_instructions = """Conduct targeted Google Searches to gather the most recent, credible information on "{research_topic}" and synthesize it into a verifiable text artifact.
+#
+# Instructions:
+# - Query should ensure that the most current information is gathered. The current date is {current_date}.
+# - Conduct multiple, diverse searches to gather comprehensive information.
+# - Consolidate key findings while meticulously tracking the source(s) for each specific piece of information.
+# - The output should be a well-written summary or report based on your search findings.
+# - Only include the information found in the search results, don't make up any information.
+#
+# Research Topic:
+# {research_topic}
+# """
 
-Instructions:
-- Query should ensure that the most current information is gathered. The current date is {current_date}.
-- Conduct multiple, diverse searches to gather comprehensive information.
-- Consolidate key findings while meticulously tracking the source(s) for each specific piece of information.
-- The output should be a well-written summary or report based on your search findings. 
-- Only include the information found in the search results, don't make up any information.
+web_searcher_instructions = """# 角色定义
+你是一个情报整合大师，你擅长处理给到的所有情报，并将其处理成一个精简的内容，并注明当前内容的来源
 
-Research Topic:
-{research_topic}
+# Instruction
+1. 当前日期是{current_date}, 必要时可以根据当前日期来过滤搜索内容中的有用信息
+2. 你需要结合当前的搜索内容来决定当前要整合的重点，即找到所有材料中和当前搜索契合的内容，并总结
+3. 在整合的内容中注意标明当前内容的信息来源是哪里
+4. 当前给定的内容包括搜索的主题，搜索结果，搜索的结果格式如下
+```json
+[
+	{
+		"snippet": "xxx（返回的相关片段）",
+		"url": "https://xxxx",
+		"title": "xxx（当前返回片段的搜索主题）"
+	}
+]
+```
+
+# Output Format
+你输出的内容是一段放在```text 和 ```之间的文本，并且针对所有引用的内容用标准的markdown下对url进行引用的格式：[代号（可以是网站名，也可以是主题，3-5个字）](url)，下面是一个样例你可以参考
+```text
+当前内容xxxx[sohu](https://search.com/id/1:000), 当前片段002...[baidu](https://search.com/id/2:004)
+```
+
+# 搜索主题
+{query}
+
+# 搜索结果
+```json
+{web_search_result}
+```
+
+# 输出
+现在让我们开始任务吧
 """
 
 reflection_instructions = """You are an expert research assistant analyzing summaries about "{research_topic}".

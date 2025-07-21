@@ -38,7 +38,7 @@ class JsonAgent(Agent):
         self.keys = keys
 
     def post_process(self, response):
-        result = json.loads(Post.extract_pattern(response))
+        result = json.loads(Post.extract_pattern(response, pattern="json"))
         if not self.keys:
             return result
         return self.keys(**result)
