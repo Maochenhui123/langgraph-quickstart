@@ -2,15 +2,14 @@ from openai import OpenAI
 import os
 
 class openaiLLM:
-    app_token = os.getenv('APP_TOKEN')
-    url = os.getenv('LLM_BASE_URL')
+
     def __init__(self, model_id=""):
         self.model_id = model_id
 
     def generate_response(self, query):
         client = OpenAI(
-            api_key=self.app_token,
-            base_url=self.url,
+            api_key=os.getenv('APP_TOKEN'),
+            base_url=os.getenv("LLM_BASE_URL"),
         )
 
         response = client.chat.completions.create(

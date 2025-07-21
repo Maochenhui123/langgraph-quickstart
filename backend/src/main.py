@@ -9,3 +9,4 @@ os.environ['GEMINI_API_KEY'] = 'AIzaSyBcvNfIJa1WKXgYjVHzOlKtYXFp2h0WSfQ'
 if __name__ == '__main__':
     agent = Agent()
     response = agent("中国的首都是那里？")
+    print(response)
