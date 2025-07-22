@@ -136,6 +136,7 @@ def reflection(state: OverallState, config: RunnableConfig) -> ReflectionState:
     agent.set_step_prompt(reflection_instructions)
     result = agent.step(
         current_date=get_current_date(),
+        number_queries=state["initial_search_query_count"],
         research_topic=get_research_topic(state["messages"]),
         summaries="\n\n---\n\n".join(state["web_research_result"]),
     )
