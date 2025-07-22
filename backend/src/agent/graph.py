@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 
 from agent.tools_and_schemas import SearchQueryList, Reflection
 from dotenv import load_dotenv
