@@ -62,6 +62,7 @@ def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerati
         number_queries=state["initial_search_query_count"],
     )
     logging.info("generate query")
+    logging.info(state)
     logging.info(f"Query generation result: {result}")
     return {"search_query": result.query}
 
@@ -99,7 +100,7 @@ def web_research(state: WebSearchAgent, config: RunnableConfig) -> OverallState:
                                  count=10)
     # 长url到短url的mapping
     long2short_url_mappings = resolve_urls(response, state["id"])
-    sources_gathered = [{"short_url": short_url, "value": long_url} for long_url, short_url in long2short_url_mappings.items()]
+    sources_gathered = [{"short_url": long2short_url_mappings[item["url"]], "value": item["url"], "label": item["title"]} for item in response]
     web_search_result = [{"snippet": item["snippet"], "title": item["title"], "url": long2short_url_mappings[item["url"]]} for item in response]
     web_search_result = json.dumps(web_search_result, ensure_ascii=False, indent=4)
 
@@ -154,6 +155,7 @@ def reflection(state: OverallState, config: RunnableConfig) -> ReflectionState:
         "follow_up_queries": result.follow_up_queries,
         "research_loop_count": state["research_loop_count"],
         "number_of_ran_queries": len(state["search_query"]),
+        "max_research_loops": state.get("max_research_loops", configurable.max_research_loops),
     }
 
 
@@ -179,6 +181,10 @@ def evaluate_research(
         if state.get("max_research_loops") is not None
         else configurable.max_research_loops
     )
+    logging.info("evaluate research")
+    logging.info(state)
+    logging.info(f"max_research_loops: {max_research_loops}")
+    logging.info(f"research_loop_count: {state['research_loop_count']}")
     if state["is_sufficient"] or state["research_loop_count"] >= max_research_loops:
         return "finalize_answer"
     else:
