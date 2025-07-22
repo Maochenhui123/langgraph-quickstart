@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 
 from agent.tools_and_schemas import SearchQueryList, Reflection
@@ -38,7 +39,7 @@ load_dotenv()
 def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerationState:
     """LangGraph node that generates search queries based on the User's question.
 
-    Uses Gemini 2.0 Flash to create an optimized search queries for web research based on
+    Uses LLM to create an optimized search queries for web research based on
     the User's question.
 
     Args:
@@ -53,7 +54,6 @@ def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerati
     if state.get("initial_search_query_count") is None:
         state["initial_search_query_count"] = configurable.number_of_initial_queries
 
-    # init Gemini 2.0 Flash
     agent = JsonAgent(model_id=configurable.query_generator_model, keys=SearchQueryList)
     agent.set_step_prompt(query_writer_instructions)
     result = agent.step(
@@ -61,6 +61,8 @@ def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerati
         research_topic=get_research_topic(state["messages"]),
         number_queries=state["initial_search_query_count"],
     )
+    logging.info("generate query")
+    logging.info(f"Query generation result: {result}")
     return {"search_query": result.query}
 
 
@@ -105,6 +107,9 @@ def web_research(state: WebSearchAgent, config: RunnableConfig) -> OverallState:
     agent.set_step_prompt(web_searcher_instructions)
     modified_text = agent.step(query=state["search_query"], current_date=get_current_date(), web_search_result=web_search_result)
     modified_text = Post.extract_pattern(modified_text, pattern="text")
+    logging.info(f"web search")
+    logging.info(f"search title: {state['search_query']}")
+    logging.info(f"web search result: {modified_text}")
     return {
         "sources_gathered": sources_gathered,
         "search_query": [state["search_query"]],
@@ -141,6 +146,8 @@ def reflection(state: OverallState, config: RunnableConfig) -> ReflectionState:
         summaries="\n\n---\n\n".join(state["web_research_result"]),
     )
 
+    logging.info("reflection")
+    logging.info(result)
     return {
         "is_sufficient": result.is_sufficient,
         "knowledge_gap": result.knowledge_gap,
@@ -221,6 +228,8 @@ def finalize_answer(state: OverallState, config: RunnableConfig):
             )
             unique_sources.append(source)
 
+    logging.info("finalize_answer")
+    logging.info(content)
     return {
         "messages": [AIMessage(content=content)],
         "sources_gathered": unique_sources,
