@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Copy, CopyCheck } from "lucide-react";
 import { InputForm } from "@/components/InputForm";
 import { Button } from "@/components/ui/button";
-import { useState, ReactNode } from "react";
+import { useState, ReactNode, useRef} from "react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -168,6 +168,9 @@ interface AiMessageBubbleProps {
   mdComponents: typeof mdComponents;
   handleCopy: (text: string, messageId: string) => void;
   copiedMessageId: string | null;
+  onStartResearch?: () => void;
+  researchStarted?: boolean;
+  showStartResearchButton?: boolean;
 }
 
 // AiMessageBubble Component
@@ -180,44 +183,83 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   mdComponents,
   handleCopy,
   copiedMessageId,
+  onStartResearch,
+  researchStarted,
+  showStartResearchButton,
 }) => {
   // Determine which activity events to show and if it's for a live loading message
   const activityForThisBubble =
     isLastMessage && isOverallLoading ? liveActivity : historicalActivity;
   const isLiveActivityForThisBubble = isLastMessage && isOverallLoading;
 
+  // 判断是否包含 title 为 "生成研究计划..." 的事件
+  const hasGeneratingSearchPlan = (activityForThisBubble || []).some(
+    (event) => event.title === "Generating Plan"
+  );
+  const timelineTitle = hasGeneratingSearchPlan ? "initiate research" : "researching";
+
   return (
     <div className={`relative break-words flex flex-col`}>
-      {activityForThisBubble && activityForThisBubble.length > 0 && (
+      {/* 如果是“研究计划”且有onStartResearch，只展示ReactMarkdown，不展示ActivityTimeline和Button */}
+      {timelineTitle === "Generating Plan" && onStartResearch ? (
         <div className="mb-3 border-b border-neutral-700 pb-3 text-xs">
-          <ActivityTimeline
-            processedEvents={activityForThisBubble}
-            isLoading={isLiveActivityForThisBubble}
-          />
-        </div>
-      )}
-      <ReactMarkdown components={mdComponents}>
-        {typeof message.content === "string"
-          ? message.content
-          : JSON.stringify(message.content)}
-      </ReactMarkdown>
-      <Button
-        variant="default"
-        className={`cursor-pointer bg-neutral-700 border-neutral-600 text-neutral-300 self-end ${
-          message.content.length > 0 ? "visible" : "hidden"
-        }`}
-        onClick={() =>
-          handleCopy(
-            typeof message.content === "string"
+          <ReactMarkdown components={mdComponents}>
+            {typeof message.content === "string"
               ? message.content
-              : JSON.stringify(message.content),
-            message.id!
-          )
-        }
-      >
-        {copiedMessageId === message.id ? "Copied" : "Copy"}
-        {copiedMessageId === message.id ? <CopyCheck /> : <Copy />}
-      </Button>
+              : JSON.stringify(message.content)}
+          </ReactMarkdown>
+          {showStartResearchButton && (
+            <Button
+              variant="default"
+              className={`mt-2 px-6 py-2 text-neutral-100 rounded-2xl transition-colors duration-200
+                ${researchStarted
+                  ? 'bg-neutral-800 cursor-not-allowed'
+                  : 'bg-neutral-700 hover:bg-neutral-600 cursor-pointer'}
+              `}
+              style={{ fontWeight: 500, fontSize: '1rem', border: 'none' }}
+              onClick={onStartResearch}
+              disabled={researchStarted}
+            >
+              {researchStarted ? 'researching' : 'initiate research'}
+            </Button>
+          )}
+        </div>
+      ) : (
+        <>
+          {activityForThisBubble && activityForThisBubble.length > 0 && (
+            <div className="mb-3 border-b border-neutral-700 pb-3 text-xs">
+              <ActivityTimeline
+                processedEvents={activityForThisBubble}
+                isLoading={isLiveActivityForThisBubble}
+                title={timelineTitle}
+              />
+            </div>
+          )}
+          {/* 只有不满足 研究计划 且 onStartResearch 时才渲染内容和复制按钮 */}
+          <ReactMarkdown components={mdComponents}>
+            {typeof message.content === "string"
+              ? message.content
+              : JSON.stringify(message.content)}
+          </ReactMarkdown>
+          <Button
+            variant="default"
+            className={`cursor-pointer bg-neutral-700 border-neutral-600 text-neutral-300 self-end ${
+              message.content.length > 0 ? "visible" : "hidden"
+            }`}
+            onClick={() =>
+              handleCopy(
+                typeof message.content === "string"
+                  ? message.content
+                  : JSON.stringify(message.content),
+                message.id!
+              )
+            }
+          >
+            {copiedMessageId === message.id ? "已复制" : "复制"}
+            {copiedMessageId === message.id ? <CopyCheck /> : <Copy />}
+          </Button>
+        </>
+      )}
     </div>
   );
 };
@@ -242,6 +284,8 @@ export function ChatMessagesView({
   historicalActivities,
 }: ChatMessagesViewProps) {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [researchStarted, setResearchStarted] = useState(false);
+  const inputFormRef = useRef<any>(null);
 
   const handleCopy = async (text: string, messageId: string) => {
     try {
@@ -252,40 +296,78 @@ export function ChatMessagesView({
       console.error("Failed to copy text: ", err);
     }
   };
+
+  // 需求确认按钮点击事件
+  const handleStartResearch = () => {
+    if (inputFormRef.current && typeof inputFormRef.current.setInputValue === 'function') {
+      inputFormRef.current.setInputValue("需求确认");
+      setResearchStarted(true);
+      // 直接传值，确保提交的是"开始研究"
+      if (typeof inputFormRef.current.submitInput === 'function') {
+        inputFormRef.current.submitInput("需求确认");
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <ScrollArea className="flex-1 overflow-y-auto" ref={scrollAreaRef}>
         <div className="p-4 md:p-6 space-y-2 max-w-4xl mx-auto pt-16">
-          {messages.map((message, index) => {
-            const isLast = index === messages.length - 1;
-            return (
-              <div key={message.id || `msg-${index}`} className="space-y-3">
-                <div
-                  className={`flex items-start gap-3 ${
-                    message.type === "human" ? "justify-end" : ""
-                  }`}
-                >
-                  {message.type === "human" ? (
-                    <HumanMessageBubble
-                      message={message}
-                      mdComponents={mdComponents}
-                    />
-                  ) : (
-                    <AiMessageBubble
-                      message={message}
-                      historicalActivity={historicalActivities[message.id!]}
-                      liveActivity={liveActivityEvents} // Pass global live events
-                      isLastMessage={isLast}
-                      isOverallLoading={isLoading} // Pass global loading state
-                      mdComponents={mdComponents}
-                      handleCopy={handleCopy}
-                      copiedMessageId={copiedMessageId}
-                    />
-                  )}
+          {/* 先找出最后一个timelineTitle为'研究计划'的AI消息索引 */}
+          {(() => {
+            let lastResearchProposalIdx = -1;
+            messages.forEach((message, idx) => {
+              if (message.type !== "human") {
+                const isLast = idx === messages.length - 1;
+                const activityForThisBubble = isLast && isLoading ? liveActivityEvents : historicalActivities[message.id!];
+                if ((activityForThisBubble || []).some((event) => event.title === "Generating Plan")) {
+                  lastResearchProposalIdx = idx;
+                }
+              }
+            });
+            return messages.map((message, index) => {
+              const isLast = index === messages.length - 1;
+              let showStartResearch = false;
+              let hasGeneratingSearchPlan = false;
+              let activityForThisBubble = isLast && isLoading ? liveActivityEvents : historicalActivities[message.id!];
+              if (message.type !== "human" && activityForThisBubble) {
+                hasGeneratingSearchPlan = (activityForThisBubble || []).some(
+                  (event) => event.title === "Generating Plan"
+                );
+                showStartResearch = hasGeneratingSearchPlan && index === lastResearchProposalIdx;
+              }
+              return (
+                <div key={message.id || `msg-${index}`} className="space-y-6">
+                  <div
+                    className={`flex items-start gap-3 ${
+                      message.type === "human" ? "justify-end" : ""
+                    }`}
+                  >
+                    {message.type === "human" ? (
+                      <HumanMessageBubble
+                        message={message}
+                        mdComponents={mdComponents}
+                      />
+                    ) : (
+                      <AiMessageBubble
+                        message={message}
+                        historicalActivity={historicalActivities[message.id!]}
+                        liveActivity={liveActivityEvents}
+                        isLastMessage={isLast}
+                        isOverallLoading={isLoading}
+                        mdComponents={mdComponents}
+                        handleCopy={handleCopy}
+                        copiedMessageId={copiedMessageId}
+                        onStartResearch={showStartResearch ? handleStartResearch : undefined}
+                        researchStarted={researchStarted}
+                        showStartResearchButton={showStartResearch}
+                      />
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
           {isLoading &&
             (messages.length === 0 ||
               messages[messages.length - 1].type === "human") && (
@@ -312,6 +394,7 @@ export function ChatMessagesView({
         </div>
       </ScrollArea>
       <InputForm
+        ref={inputFormRef}
         onSubmit={onSubmit}
         isLoading={isLoading}
         onCancel={onCancel}

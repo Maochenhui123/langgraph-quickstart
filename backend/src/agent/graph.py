@@ -23,6 +23,7 @@ from agent.prompts import (
     web_searcher_instructions,
     reflection_instructions,
     answer_instructions,
+    plan_instructions,
     plan_reflection_instructions
 )
 from agent.post import Post
@@ -42,11 +43,14 @@ def generate_plan(state: OverallState, config: RunnableConfig)-> OverallState:
 
     configurable = Configuration.from_runnable_config(config)
     agent = Agent(model_id=configurable.query_generator_model)
+    agent.set_step_prompt(plan_instructions)
     response = agent.step(
         current_date=get_current_date(),
         research_topic=get_research_topic(state["messages"], [msg.content for msg in state["plan_messages"]]),
-        research_proposal=state.get("plan", None)
+        research_proposal=state.get("plan", "")
     )
+    logging.info(state)
+    logging.info(response)
 
     return {"messages": [AIMessage(content=response)],
             "plan": response,
