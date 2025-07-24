@@ -49,6 +49,7 @@ def generate_plan(state: OverallState, config: RunnableConfig)-> OverallState:
         research_topic=get_research_topic(state["messages"], [msg.content for msg in state["plan_messages"]]),
         research_proposal=state.get("plan", "")
     )
+    response = Post.extract_pattern(response, pattern="markdown")
     logging.info(state)
     logging.info(response)
 
