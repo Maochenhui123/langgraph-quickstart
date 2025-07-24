@@ -1,20 +1,20 @@
 import json
 import logging
 
-from agent.tools_and_schemas import SearchQueryList, Reflection
+from agent.tools_and_schemas import SearchQueryList, Reflection, PlanReflection
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage
 from langgraph.types import Send
 from langgraph.graph import StateGraph
 from langgraph.graph import START, END
 from langchain_core.runnables import RunnableConfig
-from google.genai import Client
 
 from agent.state import (
     OverallState,
     QueryGenerationState,
     ReflectionState,
     WebSearchState,
+    PlanState
 )
 from agent.configuration import Configuration
 from agent.prompts import (
@@ -23,16 +23,62 @@ from agent.prompts import (
     web_searcher_instructions,
     reflection_instructions,
     answer_instructions,
+    plan_reflection_instructions
 )
 from agent.post import Post
 from agent.utils import (
     get_research_topic,
+    get_last_user_response,
     resolve_urls,
 )
 from agent.base_agent import Agent, JsonAgent, WebSearchAgent
 
 load_dotenv()
 
+def generate_plan(state: OverallState, config: RunnableConfig)-> PlanState:
+    logging.info("Generating plan...")
+    if state.get("plan_status", "unconfirmed") != "unconfirmed":
+        return {}
+
+    configurable = Configuration.from_runnable_config(config)
+    agent = Agent(model_id=configurable.query_generator_model)
+    response = agent.step(
+        current_date=get_current_date(),
+        research_topic=get_research_topic(state["messages"], [msg.content for msg in state["plan_messages"]]),
+        research_proposal=state.get("plan", None)
+    )
+
+    return {"messages": [AIMessage(content=response)],
+            "plan": response,
+            "plan_status": "unconfirmed",
+            "plan_messages": [AIMessage(content=response)]}
+
+def evaluate_plan(state: OverallState, config: RunnableConfig)-> ReflectionState:
+    configurable = Configuration.from_runnable_config(config)
+    plan = state.get("plan", None)
+    if state.get("plan_status", "unconfirmed") == "unconfirmed":
+        logging.info("Waiting for user's confirmation...")
+        return "awaiting_plan_confirmation"
+
+    if not plan:
+        logging.info("No plan to evaluate.")
+        return "replan"
+    else:
+        context = get_last_user_response(state["messages"])
+        if "开始研究" in context:
+            return "generate_query"
+        if "需求确认" in context:
+            return "generate_query"
+
+        agent = JsonAgent(model_id=configurable.query_generator_model, keys=PlanReflection)
+        agent.set_step_prompt(plan_reflection_instructions)
+        result = agent.step(
+            research_proposal=state.get("plan", ""),
+            context=context,
+        )
+        if result.satisfy:
+            return "generate_query"
+        return "replan"
 
 # Nodes
 def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerationState:
@@ -59,6 +105,7 @@ def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerati
         current_date=get_current_date(),
         research_topic=get_research_topic(state["messages"]),
         number_queries=state["initial_search_query_count"],
+        research_proposal=state.get("plan", "")
     )
     logging.info("generate query")
     logging.info(state)
@@ -144,6 +191,7 @@ def reflection(state: OverallState, config: RunnableConfig) -> ReflectionState:
         number_queries=state["initial_search_query_count"],
         research_topic=get_research_topic(state["messages"]),
         summaries="\n\n---\n\n".join(state["web_research_result"]),
+        research_proposal=state.get("plan", "")
     )
 
     logging.info("reflection")
@@ -222,6 +270,7 @@ def finalize_answer(state: OverallState, config: RunnableConfig):
         current_date=get_current_date(),
         research_topic=get_research_topic(state["messages"]),
         summaries="\n---\n\n".join(state["web_research_result"]),
+        research_proposal=state.get("plan", "")
     )
 
     # Replace the short urls with the original urls and add all used urls to the sources_gathered
@@ -245,14 +294,21 @@ def finalize_answer(state: OverallState, config: RunnableConfig):
 builder = StateGraph(OverallState, config_schema=Configuration)
 
 # Define the nodes we will cycle between
+builder.add_node("generate_plan", generate_plan)
 builder.add_node("generate_query", generate_query)
 builder.add_node("web_research", web_research)
 builder.add_node("reflection", reflection)
 builder.add_node("finalize_answer", finalize_answer)
+builder.add_node("awaiting_plan_confirmation", lambda state, config: state)
+builder.add_node("replan", lambda state, config: {"plan_status": "unconfirmed"})
 
 # Set the entrypoint as `generate_query`
 # This means that this node is the first one called
-builder.add_edge(START, "generate_query")
+builder.add_edge(START, "generate_plan")
+builder.add_conditional_edges(
+    "generate_plan", evaluate_plan, ["generate_plan", "generate_query", "replan", "awaiting_plan_confirmation"]
+)
+builder.add_edge("replan", "generate_plan")
 # Add conditional edge to continue with search queries in a parallel branch
 builder.add_conditional_edges(
     "generate_query", continue_to_web_research, ["web_research"]

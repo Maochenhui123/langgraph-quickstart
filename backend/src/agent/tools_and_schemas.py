@@ -21,3 +21,14 @@ class Reflection(BaseModel):
     follow_up_queries: List[str] = Field(
         description="A list of follow-up queries to address the knowledge gap."
     )
+
+class PlanList(BaseModel):
+    plan: str = Field(
+        description="A Research Plan confirmed by the user for later web research"
+    )
+
+
+class PlanReflection(BaseModel):
+    satisfy: bool = Field(
+        description="Whether user is satisfied with the generated research plan."
+    )
