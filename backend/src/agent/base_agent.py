@@ -65,7 +65,7 @@ class MCPAgent(Agent):
             try:
                 response = Application.call(
                     api_key=os.getenv("APP_TOKEN"),
-                    app_id=os.getenv("APP_ID"),
+                    app_id=os.getenv("MCP_APP_ID"),
                     prompt = step_prompt,
                     biz_params=kwargs
                 )
@@ -93,7 +93,7 @@ class WebSearchAgent(MCPAgent):
             try:
                 response = Application.call(
                     api_key=os.getenv("APP_TOKEN"),
-                    app_id=os.getenv("APP_ID"),
+                    app_id=os.getenv("MCP_APP_ID"),
                     prompt = step_prompt,
                     biz_params=kwargs
                 )
