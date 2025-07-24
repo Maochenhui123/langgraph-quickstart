@@ -77,7 +77,7 @@ def continue_to_web_research(state: QueryGenerationState):
     ]
 
 
-def web_research(state: WebSearchAgent, config: RunnableConfig) -> OverallState:
+def web_research(state: WebSearchState, config: RunnableConfig) -> OverallState:
     """LangGraph node that performs web research using the native Google Search API tool.
 
     Executes a web search using the native Google Search API tool in combination with Gemini 2.0 Flash.
