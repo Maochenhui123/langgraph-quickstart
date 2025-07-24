@@ -65,7 +65,7 @@ class MCPAgent(Agent):
             try:
                 response = Application.call(
                     api_key=os.getenv("APP_TOKEN"),
-                    app_id=os.getenv("APP_ID"),
+                    app_id=os.getenv("MCP_APP_ID"),
                     prompt = step_prompt,
                     biz_params=kwargs
                 )
@@ -83,26 +83,6 @@ class MCPAgent(Agent):
         return response
 
 class WebSearchAgent(MCPAgent):
-    def step(self, prompt, **kwargs):
-        try:
-            step_prompt = self.step_prompt.format(prompt=prompt)
-        except Exception as e:
-            step_prompt = self.step_prompt
-
-        for _ in range(10):
-            try:
-                response = Application.call(
-                    api_key=os.getenv("APP_TOKEN"),
-                    app_id=os.getenv("APP_ID"),
-                    prompt = step_prompt,
-                    biz_params=kwargs
-                )
-                response = self.post_process(response)
-                return response
-            except Exception as e:
-                print(e)
-                continue
-        return None
     def post_process(self, response):
         response = super().post_process(response)
         pages = json.loads(response["result"]["content"][0]["text"])["pages"]

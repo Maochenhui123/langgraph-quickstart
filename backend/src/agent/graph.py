@@ -13,8 +13,7 @@ from agent.state import (
     OverallState,
     QueryGenerationState,
     ReflectionState,
-    WebSearchState,
-    PlanState
+    WebSearchState
 )
 from agent.configuration import Configuration
 from agent.prompts import (
