@@ -35,7 +35,7 @@ from agent.base_agent import Agent, JsonAgent, WebSearchAgent
 
 load_dotenv()
 
-def generate_plan(state: OverallState, config: RunnableConfig)-> PlanState:
+def generate_plan(state: OverallState, config: RunnableConfig)-> OverallState:
     logging.info("Generating plan...")
     if state.get("plan_status", "unconfirmed") != "unconfirmed":
         return {}
