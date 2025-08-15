@@ -23,8 +23,8 @@ export default function App() {
     reasoning_model: string;
   }>({
     apiUrl: import.meta.env.DEV
-      ? "http://localhost:2024"
-      : "http://dsearch.langgraph.cn",
+      ? "http://121.43.198.13:2024"
+      : "http://121.43.198.13:8123",
     assistantId: "agent",
     messagesKey: "messages",
     onUpdateEvent: (event: any) => {
