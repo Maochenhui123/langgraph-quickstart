@@ -1,5 +1,6 @@
 # mypy: disable - error - code = "no-untyped-def,misc"
 import pathlib
+import logging
 from fastapi import FastAPI, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,8 @@ app.add_middleware(
         "http://127.0.0.1:5173",     # 本机IP访问
         "http://127.0.0.1:3000",     # 本机IP访问
         "http://127.0.0.1:8080",     # 本机IP访问
+        "http://localhost:2024",      # 本地其他端口
+        "http://127.0.0.1:2024",     # 本地其他端口
     ],
     allow_credentials=True,
     allow_methods=["*"],  # 允许所有HTTP方法
@@ -28,7 +31,16 @@ app.add_middleware(
 @app.middleware("http")
 async def add_cors_header(request, call_next):
     response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
+    # 动态设置CORS头，支持多个前端地址
+    origin = request.headers.get("origin")
+    if origin in [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173", 
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+    ]:
+        response.headers["Access-Control-Allow-Origin"] = origin
+    logging.info(f"CORS header set for origin: {origin}")
     response.headers["Access-Control-Allow-Credentials"] = "true"
     response.headers["Access-Control-Allow-Methods"] = "*"
     response.headers["Access-Control-Allow-Headers"] = "*"
