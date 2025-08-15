@@ -1,13 +1,35 @@
 # mypy: disable - error - code = "no-untyped-def,misc"
 import pathlib
 import logging
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.cors import CORSMiddleware as StarletteCORSMiddleware
 
+# 配置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Define the FastAPI app
 app = FastAPI()
+
+# 添加健康检查端点
+@app.get("/health")
+async def health_check():
+    logger.info("Health check endpoint called")
+    return {"status": "healthy", "message": "Backend service is running"}
+
+# 添加调试端点
+@app.get("/debug")
+async def debug_info(request: Request):
+    logger.info(f"Debug endpoint called from {request.client.host}:{request.client.port}")
+    return {
+        "client_ip": request.client.host,
+        "client_port": request.client.port,
+        "headers": dict(request.headers),
+        "method": request.method,
+        "url": str(request.url)
+    }
 
 # Add CORS middleware to FastAPI app
 app.add_middleware(
